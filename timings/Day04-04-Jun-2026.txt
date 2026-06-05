@@ -8,8 +8,8 @@ What I did today
 
 Tomorrow's Task
 
-3 hours will learn Linux commands
-3 hours watched youtube videos related to Linux
+3 hours will learn Git & GitHub 
+3 hours watched youtube videos related to Git & GitHub
 1 Hour watching english videos
-2 hour watching other linux video
+2 hour watching other Git & GitHub
 1 hour coding practice
