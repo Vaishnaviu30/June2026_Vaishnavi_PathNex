@@ -1,0 +1,207 @@
+---
+- name: Create Pathnex Admin User
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Create user
+      user:
+        name: pathnex-admin
+        shell: /bin/bash
+        create_home: yes
+        state: present
+
+    - name: Create .ssh directory
+      file:
+        path: /home/pathnex-admin/.ssh
+        state: directory
+        owner: pathnex-admin
+        group: pathnex-admin
+        mode: '0700'
+
+    - name: Add SSH public key
+      authorized_key:
+        user: pathnex-admin
+        key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDexamplekey"
+
+
+provider "aws" {
+  region = "ap-south-1"
+}
+
+resource "aws_instance" "pathnex" {
+  ami           = "ami-0f58b397bc5c1f2e8"
+  instance_type = "t2.micro"
+
+  tags = {
+    Name    = "Pathnex-Server"
+    Project = "Pathnex-Training"
+  }
+}
+
+output "public_ip" {
+  value = aws_instance.pathnex.public_ip
+}
+
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: nginx
+
+  template:
+    metadata:
+      labels:
+        app: nginx
+
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: nginx-service
+
+spec:
+  selector:
+    app: nginx
+
+  ports:
+  - port: 80
+    targetPort: 80
+
+  type: ClusterIP
+
+
+#!/bin/bash
+
+while true
+do
+echo "===== MENU ====="
+echo "1. IP Address"
+echo "2. Disk Usage"
+echo "3. Memory Usage"
+echo "4. Exit"
+
+read -p "Enter choice: " choice
+
+case $choice in
+1)
+hostname -I
+;;
+
+2)
+df -h
+;;
+
+3)
+free -h
+;;
+
+4)
+exit
+;;
+
+*)
+echo "Invalid Option"
+;;
+esac
+done
+
+
+pipeline {
+
+    agent any
+
+    environment {
+        INSTITUTE_NAME = "Pathnex"
+        TEAM = "DevOps"
+        ENV = "prod"
+        PROJECT = "Pathnex-Training"
+    }
+
+    stages {
+
+        stage('Infrastructure') {
+            steps {
+                sh '''
+                terraform init
+                terraform apply -auto-approve
+                '''
+            }
+        }
+
+        stage('App Deployment') {
+            steps {
+                sh '''
+                ansible-playbook user.yml
+                kubectl apply -f deployment.yaml
+                '''
+            }
+        }
+
+        stage('Monitoring Checks') {
+            steps {
+                sh '''
+                echo "IP Address"
+                hostname -I
+
+                echo "Disk Usage"
+                df -h
+
+                echo "Memory Usage"
+                free -h
+                '''
+            }
+        }
+    }
+}
+
+
+
+stages:
+  - infrastructure
+  - app_deployment
+  - monitoring_checks
+
+variables:
+  INSTITUTE_NAME: "Pathnex"
+  TEAM: "DevOps"
+  ENV: "prod"
+  PROJECT: "Pathnex-Training"
+
+infrastructure:
+  stage: infrastructure
+  script:
+    - terraform init
+    - terraform apply -auto-approve
+
+app_deployment:
+  stage: app_deployment
+  script:
+    - ansible-playbook user.yml
+    - kubectl apply -f deployment.yaml
+
+monitoring_checks:
+  stage: monitoring_checks
+  script:
+    - echo "IP Address"
+    - hostname -I
+    - echo "Disk Usage"
+    - df -h
+    - echo "Memory Usage"
+    - free -h
